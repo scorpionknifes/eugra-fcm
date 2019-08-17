@@ -1,31 +1,36 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net"
 
-	"github.com/appleboy/go-fcm"
+	"google.golang.org/grpc"
 )
 
+const (
+	port = ":50051"
+)
+
+// server is used to implement helloworld.GreeterServer.
+type server struct{}
+
+// SayHello implements helloworld.GreeterServer
+func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
+	log.Printf("Received: %v", in.Name)
+	return &pb.HelloReply{Message: "Hello " + in.Name}, nil
+}
+
+// main start a gRPC server and waits for connection
 func main() {
-	// Create the message to be sent.
-	msg := &fcm.Message{
-		To: "sample_device_token",
-		Data: map[string]interface{}{
-			"foo": "bar",
-		},
-	}
-
-	// Create a FCM client to send the message.
-	client, err := fcm.NewClient("AAAA1YSlFuQ:APA91bGjAbnVhpFYWLfr2l2qafYpsFJhAbIl5eGvcew-eWf1w0myBwrP8TPVI0c2czNLqKEYWvXM3Y32vv0wb25_nNxcIWgvJaSzIQD3qn5KE_6ywQtX599mXb61aKUwA_bbx7CBIzMv")
+	lis, err := net.Listen("tcp", port)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	pb.RegisterGreeterServer(s, &server{})
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 
-	// Send the message and receive the response without retries.
-	response, err := client.Send(msg)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	log.Printf("%#v\n", response)
 }
